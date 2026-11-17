@@ -1,0 +1,3 @@
+Web adaptation reference: local Telegram-iOS TabBarComponent.swift, StaticGlassBackground.swift, and DefaultDarkPresentationTheme.swift. The web bar adapts the selected item/lens, four-point inset, rounded capsule, theme-aware ink, and accessible selection semantics to browser HTML/CSS/JS. Native UIKit/Metal refraction is not executed in a browser.
+
+Icon assets extracted from Telegram-iOS resources: ic_maphome.pdf, bookmark.pdf, ic_tb_settings.pdf, readinglist.pdf, question_30.pdf. Upstream source: https://github.com/TelegramMessenger/Telegram-iOS . Retain applicable upstream license notices for these resources.
