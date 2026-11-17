@@ -12,8 +12,8 @@
   let bookmarks=load('muc-bank-saved',[]);if(!Array.isArray(bookmarks))bookmarks=[];
   let answers=load('muc-lecture1-answers',{});if(!answers||typeof answers!=='object'||Array.isArray(answers))answers={};
   const restored=load('muc-bank-view',{});let page=Number.isInteger(restored.page)?Math.max(1,restored.page):1;
-  let onlySaved=restored.onlySaved===true;
-  const query=new URLSearchParams(location.search);let directId=query.get('id');
+  let onlySaved=restored.onlySaved===true;let onlyWrong=restored.onlyWrong===true;
+  const query=new URLSearchParams(location.search);let directId=query.get('id');if(query.has('mistakes'))onlyWrong=true;
   const pageSize=20;
   const labels={mcq:['اختيار من متعدد','Multiple Choice'],blank:['فراغات','Fill in the Blanks'],short:['إجابة قصيرة','Short Answer'],case:['حالة دراسية','Case Study'],diagram:['رسم','Diagram']};
   const input=$('#bank-search'),type=$('#bank-type'),scope=$('#bank-scope');
@@ -22,8 +22,18 @@
   if([...scope.options].some(o=>o.value===(query.get('scope')||restored.scope)))scope.value=query.get('scope')||restored.scope;
   data.forEach(q=>q.searchText=norm([q.prompt,q.context,q.answerHTML,q.group,...(q.options||[])].join(' ')));
   function groupLabel(q){return q.group==='final'?text('الاختبار النهائي','Final Exam'):q.group==='mini'?text('تدريب مباشر إضافي','Extra Direct Practice'):(q.week>1?q.group:text('الأسبوع الأول · سلايد ','Week 1 · Slide ')+q.group.replace('-','–'))}
-  function viewState(){save('muc-bank-view',{page,search:input.value,type:type.value,scope:scope.value,onlySaved})}
-  function matching(){const terms=norm(input.value).split(' ').filter(Boolean);return data.filter(q=>(!directId||q.id===directId)&&(type.value==='all'||q.type===type.value)&&(scope.value==='all'||q.lecture===scope.value||(scope.value==='w'+q.week))&&(!onlySaved||bookmarks.includes(q.id))&&terms.every(t=>q.searchText.includes(t)))}
+  function viewState(){save('muc-bank-view',{page,search:input.value,type:type.value,scope:scope.value,onlySaved,onlyWrong})}
+  function matching(){const terms=norm(input.value).split(' ').filter(Boolean);return data.filter(q=>(!directId||q.id===directId)&&(type.value==='all'||q.type===type.value)&&(scope.value==='all'||q.lecture===scope.value||(scope.value==='w'+q.week))&&(!onlySaved||bookmarks.includes(q.id))&&(!onlyWrong||isWrong(q))&&terms.every(t=>q.searchText.includes(t)))}
+  function isWrong(q){
+    const history=load('mohammad-mistakes-v1',[]),key=q.persist||q.id,record=answers[key];
+    if(q.type==='mcq'){if(record?.checked)return Number(record.value)!==q.correct;return history.includes(key)}
+    if(q.type==='blank'&&q.answer){
+      const [file,id]=q.href.split('#');const match=id?.match(/final-blank-(\d+)$/);if(!match)return false;
+      const week=file.match(/exam-week([23])/),state=load(week?'muc-week'+week[1]+'-final-v1':'muc-final-exam-v1',{}),i=Number(match[1])-1;
+      if(state.blankChecked?.[i]){const normalize=v=>String(v??'').trim().toLowerCase().replace(/[.،,;:!?]/g,'').replace(/\s+/g,' ');return normalize(state.blanks?.[i])!==normalize(q.answer)}
+      return history.includes(q.href);
+    }return false;
+  }
   function feedback(q,record){if(!record?.checked)return '';const correct=Number(record.value)===q.correct;return (correct?text('✓ إجابة صحيحة. ','✓ Correct. '):text('راجع إجابتك. الصحيح: ','Review your answer. Correct: ')+String.fromCharCode(65+q.correct)+'. ')+(q.explanation||'')}
   function card(q){
     const record=answers[q.persist||q.id],saved=bookmarks.includes(q.id);
@@ -46,7 +56,9 @@
     const asideTitle=document.querySelector('aside>h2');if(asideTitle)asideTitle.textContent=text('بنك الأسئلة','Question Bank');
     input.placeholder=text('ابحث بمصطلح أو سؤال…','Search a term or question…');input.setAttribute('aria-label',text('البحث في الأسئلة','Search Questions'));
     const typeNames=[text('كل الأنواع','All Types'),...['mcq','blank','short','case','diagram'].map(k=>labels[k][en()?1:0])];[...type.options].forEach((o,i)=>o.textContent=typeNames[i]);
-    const scopes=[text('كل المادة','Entire Course'),text('المحاضرة الأولى','Lecture 1'),text('المحاضرة الثانية','Lecture 2'),text('اختبار الأسبوع الأول','Week 1 Exam & Practice'),text('الأسبوع الأول','Week 1'),text('الأسبوع الثاني','Week 2'),text('الأسبوع الثالث','Week 3')];[...scope.options].forEach((o,i)=>o.textContent=scopes[i]);
+    const scopes=[text('كل المادة','Entire Course'),text('الأسبوع الأول · المحاضرة الأولى','Week 1 · Lecture 1'),text('الأسبوع الأول · المحاضرة الثانية','Week 1 · Lecture 2'),text('اختبار الأسبوع الأول','Week 1 Exam & Practice'),text('الأسبوع الأول','Week 1'),text('الأسبوع الثاني','Week 2'),text('الأسبوع الثالث','Week 3')];[...scope.options].forEach((o,i)=>o.textContent=scopes[i]);
+    $('#bank-wrong-note').hidden=!onlyWrong;$('#bank-wrong-note').textContent=text('هون بتراجع أخطاء الاختيار والفراغات المصحّحة. السؤال بضل للمراجعة حتى تصحّح إجابتك.','Review marked MCQ and fill-in mistakes. A question stays here until you check a correct answer.');
+    $('#bank-only-wrong').textContent=text('راجع أخطائي','Review My Mistakes');$('#bank-only-wrong').setAttribute('aria-pressed',onlyWrong);
     $('#bank-only-saved').textContent=text('المحفوظة فقط','Saved Only');$('#bank-only-saved').setAttribute('aria-pressed',onlySaved);
     $('#bank-count').textContent=text(items.length+' بطاقة من أصل '+data.length+' · الحالة الدراسية قد تضم عدة أسئلة.',items.length+' of '+data.length+' cards · Case cards may contain several questions.');
     $('#bank-results').innerHTML=items.slice((page-1)*pageSize,page*pageSize).map(card).join('');$('#bank-empty').hidden=items.length!==0;$('#bank-empty').textContent=text('ما في أسئلة مطابقة. جرّب كلمة أو تصنيفًا آخر.','No matching questions. Try a different term or filter.');
@@ -55,14 +67,15 @@
       const q=data.find(item=>item.id===el.id),key=q.persist||q.id;
       el.querySelectorAll('input[type=radio]').forEach(radio=>radio.addEventListener('change',()=>{answers[key]={value:radio.value,checked:false};save('muc-lecture1-answers',answers);const out=el.querySelector('.bank-status');out.textContent='';out.className='bank-status';}));
       el.querySelector('.bank-check')?.addEventListener('click',()=>{const selected=el.querySelector('input:checked'),out=el.querySelector('.bank-status');if(!selected){out.textContent=text('اختَر إجابة أولًا.','Choose an answer first.');return}const record={value:selected.value,checked:true};answers[key]=record;save('muc-lecture1-answers',answers);out.textContent=feedback(q,record);out.className='bank-status '+(Number(selected.value)===q.correct?'correct':'wrong');el.querySelector('details').open=true;});
-      el.querySelector('.bank-save').addEventListener('click',()=>{bookmarks=bookmarks.includes(q.id)?bookmarks.filter(id=>id!==q.id):[...bookmarks,q.id];save('muc-bank-saved',bookmarks);render();});
+      el.querySelector('.bank-save').addEventListener('click',()=>{bookmarks=bookmarks.includes(q.id)?bookmarks.filter(id=>id!==q.id):[...bookmarks,q.id];save('muc-bank-saved',bookmarks);render();(document.getElementById(q.id)?.querySelector('.bank-save')||$('#bank-only-saved')).focus({preventScroll:true});});
       el.querySelector('.bank-share').addEventListener('click',async e=>{const url=new URL('questions.html',location.href);url.searchParams.set('id',q.id);try{await navigator.clipboard.writeText(url.href);e.target.textContent=text('✓ نُسخ الرابط','✓ Link Copied')}catch{e.target.textContent=text('رابط السؤال في شريط العنوان','Question link in address bar');history.replaceState(null,'',url.href)}});
     });viewState();
   }
   function changed(){page=1;if(directId){const u=new URL(location.href);u.searchParams.delete('id');history.replaceState(null,'',u.href)}directId=null;render()}
-  input.addEventListener('input',changed);type.addEventListener('change',changed);scope.addEventListener('change',changed);$('#bank-only-saved').onclick=()=>{onlySaved=!onlySaved;changed()};
+  input.addEventListener('input',changed);type.addEventListener('change',changed);scope.addEventListener('change',changed);$('#bank-only-wrong').onclick=()=>{onlyWrong=!onlyWrong;if(!onlyWrong){const u=new URL(location.href);u.searchParams.delete('mistakes');history.replaceState(null,'',u.href)}changed()};$('#bank-only-saved').onclick=()=>{onlySaved=!onlySaved;changed()};
   $('#bank-prev').onclick=()=>{page--;render();$('#bank-results').scrollIntoView({block:'start'})};$('#bank-next').onclick=()=>{page++;render();$('#bank-results').scrollIntoView({block:'start'})};
   $('#muc-language')?.addEventListener('change',render);
   $('#print').onclick=()=>window.print();$('#share').onclick=async()=>{try{await navigator.clipboard.writeText(location.href);$('#share-status').textContent=text('تم نسخ الرابط.','Link copied.')}catch{}};
+  document.addEventListener('study:graded',()=>{answers=load('muc-lecture1-answers',{});if(onlyWrong){const focused=document.activeElement,card=focused?.closest('.bank-card'),id=card?.id,action=focused?.matches('.bank-save')?'.bank-save':'.bank-check';render();if(id)(document.getElementById(id)?.querySelector(action)||$('#bank-only-wrong')).focus({preventScroll:true})}});
   render();
 })();
