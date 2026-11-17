@@ -45,7 +45,7 @@
   });
   const banner=document.querySelector('.resume-banner');
   const last=read('muc-lecture1-last-slide',null);
-  if(banner&&Number.isInteger(last)&&last>=1&&last<=29){
+  if(banner&&Number.isInteger(last)&&last>=1&&last<=58){
     banner.hidden=false;banner.querySelector('.resume-label').textContent=isEnglish()?`Your last reading position: Slide ${last}`:`آخر موضع قراءة: سلايد ${last}`;
     banner.querySelector('button').onclick=()=>{location.hash=(isEnglish()?'en-':'')+'slide-'+last;};
   }
