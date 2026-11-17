@@ -21,9 +21,9 @@
   if([...type.options].some(o=>o.value===(query.get('type')||restored.type)))type.value=query.get('type')||restored.type;
   if([...scope.options].some(o=>o.value===(query.get('scope')||restored.scope)))scope.value=query.get('scope')||restored.scope;
   data.forEach(q=>q.searchText=norm([q.prompt,q.context,q.answerHTML,q.group,...(q.options||[])].join(' ')));
-  function groupLabel(q){return q.group==='final'?text('الاختبار النهائي','Final Exam'):q.group==='mini'?text('تدريب مباشر إضافي','Extra Direct Practice'):text('سلايد ','Slide ')+q.group.replace('-','–')}
+  function groupLabel(q){return q.group==='final'?text('الاختبار النهائي','Final Exam'):q.group==='mini'?text('تدريب مباشر إضافي','Extra Direct Practice'):(q.week>1?q.group:text('الأسبوع الأول · سلايد ','Week 1 · Slide ')+q.group.replace('-','–'))}
   function viewState(){save('muc-bank-view',{page,search:input.value,type:type.value,scope:scope.value,onlySaved})}
-  function matching(){const terms=norm(input.value).split(' ').filter(Boolean);return data.filter(q=>(!directId||q.id===directId)&&(type.value==='all'||q.type===type.value)&&(scope.value==='all'||q.lecture===scope.value)&&(!onlySaved||bookmarks.includes(q.id))&&terms.every(t=>q.searchText.includes(t)))}
+  function matching(){const terms=norm(input.value).split(' ').filter(Boolean);return data.filter(q=>(!directId||q.id===directId)&&(type.value==='all'||q.type===type.value)&&(scope.value==='all'||q.lecture===scope.value||(scope.value==='w'+q.week))&&(!onlySaved||bookmarks.includes(q.id))&&terms.every(t=>q.searchText.includes(t)))}
   function feedback(q,record){if(!record?.checked)return '';const correct=Number(record.value)===q.correct;return (correct?text('✓ إجابة صحيحة. ','✓ Correct. '):text('راجع إجابتك. الصحيح: ','Review your answer. Correct: ')+String.fromCharCode(65+q.correct)+'. ')+(q.explanation||'')}
   function card(q){
     const record=answers[q.persist||q.id],saved=bookmarks.includes(q.id);
@@ -42,11 +42,11 @@
   function render(){
     const items=matching(),pages=Math.max(1,Math.ceil(items.length/pageSize));page=Math.min(page,pages);
     $('#bank-title').textContent=text('بنك الأسئلة','Question Bank');$('#bank-intro').textContent=text('كل أسئلة السلايدات والتدريبات والاختبار النهائي، مع الإجابات والتفسير.','Slide questions, practice sets, and the final exam in one place, with answers and explanations.');
-    document.title=text('بنك الأسئلة','Question Bank')+' — IoT Security | MUC';
+    document.title=text('بنك الأسئلة','Question Bank')+' — IoT Security | Mohammad';
     const asideTitle=document.querySelector('aside>h2');if(asideTitle)asideTitle.textContent=text('بنك الأسئلة','Question Bank');
     input.placeholder=text('ابحث بمصطلح أو سؤال…','Search a term or question…');input.setAttribute('aria-label',text('البحث في الأسئلة','Search Questions'));
     const typeNames=[text('كل الأنواع','All Types'),...['mcq','blank','short','case','diagram'].map(k=>labels[k][en()?1:0])];[...type.options].forEach((o,i)=>o.textContent=typeNames[i]);
-    const scopes=[text('كل المادة','Entire Course'),text('المحاضرة الأولى','Lecture 1'),text('المحاضرة الثانية','Lecture 2'),text('الاختبار والتدريب المباشر','Exam & Direct Practice')];[...scope.options].forEach((o,i)=>o.textContent=scopes[i]);
+    const scopes=[text('كل المادة','Entire Course'),text('المحاضرة الأولى','Lecture 1'),text('المحاضرة الثانية','Lecture 2'),text('اختبار الأسبوع الأول','Week 1 Exam & Practice'),text('الأسبوع الأول','Week 1'),text('الأسبوع الثاني','Week 2'),text('الأسبوع الثالث','Week 3')];[...scope.options].forEach((o,i)=>o.textContent=scopes[i]);
     $('#bank-only-saved').textContent=text('المحفوظة فقط','Saved Only');$('#bank-only-saved').setAttribute('aria-pressed',onlySaved);
     $('#bank-count').textContent=text(items.length+' بطاقة من أصل '+data.length+' · الحالة الدراسية قد تضم عدة أسئلة.',items.length+' of '+data.length+' cards · Case cards may contain several questions.');
     $('#bank-results').innerHTML=items.slice((page-1)*pageSize,page*pageSize).map(card).join('');$('#bank-empty').hidden=items.length!==0;$('#bank-empty').textContent=text('ما في أسئلة مطابقة. جرّب كلمة أو تصنيفًا آخر.','No matching questions. Try a different term or filter.');

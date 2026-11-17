@@ -44,14 +44,15 @@
     };score(section);
   });
   const banner=document.querySelector('.resume-banner');
-  const last=read('muc-lecture1-last-slide',null);
-  if(banner&&Number.isInteger(last)&&last>=1&&last<=58){
+  const lastKey=document.body.dataset.week==='2'||document.body.dataset.week==='3'?'muc-week'+document.body.dataset.week+'-last-slide':'muc-lecture1-last-slide';
+  const last=read(lastKey,null);
+  if(banner&&Number.isInteger(last)&&last>=1&&last<=Number(document.querySelector('#progress')?.max||58)){
     banner.hidden=false;banner.querySelector('.resume-label').textContent=isEnglish()?`Your last reading position: Slide ${last}`:`آخر موضع قراءة: سلايد ${last}`;
     banner.querySelector('button').onclick=()=>{location.hash=(isEnglish()?'en-':'')+'slide-'+last;};
   }
   if('IntersectionObserver'in window){
     const observer=new IntersectionObserver(entries=>{
-      entries.filter(e=>e.isIntersecting).forEach(e=>{const n=Number(e.target.id.match(/slide-(\d+)$/)?.[1]);if(n)write('muc-lecture1-last-slide',n);});
+      entries.filter(e=>e.isIntersecting).forEach(e=>{const n=Number(e.target.id.match(/slide-(\d+)$/)?.[1]);if(n)write(lastKey,n);});
     },{rootMargin:'-15% 0px -55% 0px',threshold:0});
     document.querySelectorAll('section[id^="slide-"],section[id^="en-slide-"]').forEach(s=>observer.observe(s));
   }
