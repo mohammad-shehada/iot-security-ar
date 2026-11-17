@@ -3,6 +3,9 @@
   const reduced=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
   const text=(ar,en)=>document.documentElement.lang==='en'?en:ar;
   const load=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key))??fallback}catch{return fallback}};
+  // Native event dispatch may run microtasks after the capture listener but
+  // before the target's click handler. Use the next task to read committed UI.
+  const afterAction=callback=>setTimeout(callback,0);
   const key='mohammad-mistakes-v1';let mistakes=load(key,[]);if(!Array.isArray(mistakes))mistakes=[];
   const live=document.createElement('div');live.className='interaction-live';live.setAttribute('role','status');live.setAttribute('aria-live','polite');live.setAttribute('aria-atomic','true');document.body.append(live);
   let clearLive,lastCelebration=0;
@@ -25,16 +28,17 @@
     if(button.matches('.save-post,.bank-save')){
       const bank=button.matches('.bank-save'),card=button.closest('.bank-card,.study-post'),id=card?.id;if(!id)return;
       const before=button.getAttribute('aria-pressed')==='true';
-      queueMicrotask(()=>{const saved=load(bank?'muc-bank-saved':'muc-study-saved',[]).includes(id);if(saved===before)return;const target=document.getElementById(id)?.querySelector(bank?'.bank-save':'.save-post');acknowledge(target,rect,saved?text('انضاف للمحفوظات','Added to Saved'):text('انشال من المحفوظات','Removed from Saved'),saved?'🔖':null,saved?'success':'removed')});return;
+      afterAction(()=>{const saved=load(bank?'muc-bank-saved':'muc-study-saved',[]).includes(id);if(saved===before)return;const target=document.getElementById(id)?.querySelector(bank?'.bank-save':'.save-post');acknowledge(target,rect,saved?text('انضاف للمحفوظات','Added to Saved'):text('انشال من المحفوظات','Removed from Saved'),saved?'🔖':null,saved?'success':'removed')});return;
     }
     if(button.matches('.read-toggle')){
-      queueMicrotask(()=>{if(button.getAttribute('aria-pressed')!=='true'){acknowledge(button,rect,text('تم إلغاء علامة المراجعة','Review mark removed'),null,'removed');return}const bar=document.querySelector('#progress');acknowledge(button,rect,bar&&bar.value===bar.max?text('أنهيت مراجعة الأسبوع 🎉','Week reviewed 🎉'):text('خطوة كمان 👏','One more step 👏'),'👏')});return;
+      const before=button.getAttribute('aria-pressed')==='true';
+      afterAction(()=>{const reviewed=button.getAttribute('aria-pressed')==='true';if(reviewed===before)return;if(!reviewed){acknowledge(button,rect,text('تم إلغاء علامة المراجعة','Review mark removed'),null,'removed');return}const bar=document.querySelector('#progress');acknowledge(button,rect,bar&&bar.value===bar.max?text('أنهيت مراجعة الأسبوع 🎉','Week reviewed 🎉'):text('خطوة كمان 👏','One more step 👏'),'👏')});return;
     }
     if(!button.matches('.check,.bank-check,.check-blank,.exam-check,.check-all,.check-part'))return;
     const target=button.closest('fieldset.quiz,.bank-card,.exam-blank');
     // A bulk check updates every record but produces only one short reaction.
     const containers=target?[target]:[...document.querySelectorAll('fieldset.quiz,.exam-blank')].filter(c=>c.querySelector('input:checked')||c.querySelector('input[type=text]')?.value.trim());
-    queueMicrotask(()=>{
+    afterAction(()=>{
       let graded=false,good=false;
       for(const box of containers){
         const out=box.querySelector('.feedback,.bank-status,.exam-feedback');if(!out||(!out.classList.contains('correct')&&!out.classList.contains('wrong')))continue;
